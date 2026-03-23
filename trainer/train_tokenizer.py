@@ -122,5 +122,7 @@ def eval_tokenizer(tokenizer_dir):
             token_cache = []
 
 if __name__ == '__main__':
+    texts = get_texts(DATA_PATH)
+    print(list(texts)[1])
     train_tokenizer(DATA_PATH, TOKENIZER_DIR, VOCAB_SIZE)
     eval_tokenizer(TOKENIZER_DIR)

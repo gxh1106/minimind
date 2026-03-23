@@ -24,6 +24,7 @@ def convert_torch2transformers_minimind(torch_path, transformers_path, dtype=tor
     model_params = sum(p.numel() for p in lm_model.parameters() if p.requires_grad)
     print(f'模型参数: {model_params / 1e6} 百万 = {model_params / 1e9} B (Billion)')
     lm_model.save_pretrained(transformers_path, safe_serialization=False)
+    # lm_model.save_pretrained(transformers_path, safe_serialization=True)
     tokenizer = AutoTokenizer.from_pretrained('../model/')
     tokenizer.save_pretrained(transformers_path)
     # 兼容transformers-5.0的写法
@@ -69,9 +70,11 @@ def convert_transformers2torch(transformers_path, torch_path):
 
 
 if __name__ == '__main__':
-    lm_config = MiniMindConfig(hidden_size=512, num_hidden_layers=8, max_seq_len=8192, use_moe=False)
-    torch_path = f"../out/full_sft_{lm_config.hidden_size}{'_moe' if lm_config.use_moe else ''}.pth"
-    transformers_path = '../MiniMind2-Small'
-    convert_torch2transformers_llama(torch_path, transformers_path)
+    lm_config = MiniMindConfig(hidden_size=512, num_hidden_layers=8, max_seq_len=8192, use_moe=False, elementwise_attn_output_gate=True)
+    # torch_path = f"../out/full_sft_{lm_config.hidden_size}{'_moe' if lm_config.use_moe else ''}.pth"
+    torch_path = f"../out/pretrain_{lm_config.hidden_size}{'_moe' if lm_config.use_moe else ''}.pth"
+    transformers_path = '../MiniMind2-GatedAttn-Pretain-512'
+    convert_torch2transformers_minimind(torch_path, transformers_path)
+    # convert_torch2transformers_llama(torch_path, transformers_path)
     # # convert transformers to torch model
     # convert_transformers2torch(transformers_path, torch_path)

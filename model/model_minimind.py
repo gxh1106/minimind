@@ -37,6 +37,8 @@ class MiniMindConfig(PretrainedConfig):
             aux_loss_alpha: float = 0.01,
             seq_aux: bool = True,
             norm_topk_prob: bool = True,
+            elementwise_attn_output_gate=False,
+            headwise_attn_output_gate=False,
             **kwargs
     ):
         super().__init__(**kwargs)
@@ -50,6 +52,10 @@ class MiniMindConfig(PretrainedConfig):
         self.num_attention_heads = num_attention_heads
         self.num_hidden_layers = num_hidden_layers
         self.num_key_value_heads = num_key_value_heads
+
+        self.headwise_attn_output_gate = headwise_attn_output_gate
+        self.elementwise_attn_output_gate = elementwise_attn_output_gate
+
         self.vocab_size = vocab_size
         self.rms_norm_eps = rms_norm_eps
         self.rope_theta = rope_theta
@@ -156,7 +162,17 @@ class Attention(nn.Module):
         self.n_local_kv_heads = self.num_key_value_heads
         self.n_rep = self.n_local_heads // self.n_local_kv_heads
         self.head_dim = args.hidden_size // args.num_attention_heads
-        self.q_proj = nn.Linear(args.hidden_size, args.num_attention_heads * self.head_dim, bias=False)
+
+        self.headwise_attn_output_gate = args.headwise_attn_output_gate
+        self.elementwise_attn_output_gate = args.elementwise_attn_output_gate
+        if self.headwise_attn_output_gate:
+            self.q_proj = nn.Linear(args.hidden_size, args.num_attention_heads * self.head_dim + args.num_attention_heads, bias=False)
+        elif self.elementwise_attn_output_gate:
+            self.q_proj = nn.Linear(args.hidden_size, args.num_attention_heads * self.head_dim * 2, bias=False)
+        else:
+            self.q_proj = nn.Linear(args.hidden_size, args.num_attention_heads * self.head_dim, bias=False)
+
+        # self.q_proj = nn.Linear(args.hidden_size, args.num_attention_heads * self.head_dim, bias=False)
         self.k_proj = nn.Linear(args.hidden_size, self.num_key_value_heads * self.head_dim, bias=False)
         self.v_proj = nn.Linear(args.hidden_size, self.num_key_value_heads * self.head_dim, bias=False)
         self.o_proj = nn.Linear(args.num_attention_heads * self.head_dim, args.hidden_size, bias=False)
@@ -174,7 +190,21 @@ class Attention(nn.Module):
                 attention_mask: Optional[torch.Tensor] = None):
         bsz, seq_len, _ = x.shape
         xq, xk, xv = self.q_proj(x), self.k_proj(x), self.v_proj(x)
-        xq = xq.view(bsz, seq_len, self.n_local_heads, self.head_dim)
+
+        if self.headwise_attn_output_gate:
+            xq = xq.view(bsz, seq_len, self.num_key_value_heads, -1)
+            xq, gate_score = torch.split(xq, [self.head_dim * self.n_rep, self.n_rep], dim=-1)
+            gate_score = gate_score.reshape(bsz, seq_len, -1, 1)
+            xq = xq.reshape(bsz, seq_len, -1, self.head_dim)
+        elif self.elementwise_attn_output_gate:
+            xq = xq.view(bsz, seq_len, self.num_key_value_heads, -1)
+            xq, gate_score = torch.split(xq, [self.head_dim * self.n_rep, self.head_dim * self.n_rep], dim=-1)
+            gate_score = gate_score.reshape(bsz, seq_len, -1, self.head_dim)
+            xq = xq.reshape(bsz, seq_len, -1, self.head_dim)
+        else:
+            xq = xq.view(bsz, seq_len, -1, self.head_dim)
+
+        # xq = xq.view(bsz, seq_len, self.n_local_heads, self.head_dim)
         xk = xk.view(bsz, seq_len, self.n_local_kv_heads, self.head_dim)
         xv = xv.view(bsz, seq_len, self.n_local_kv_heads, self.head_dim)
 
@@ -208,7 +238,12 @@ class Attention(nn.Module):
             scores = self.attn_dropout(scores)
             output = scores @ xv
 
-        output = output.transpose(1, 2).reshape(bsz, seq_len, -1)
+        output = output.transpose(1, 2).contiguous()
+        if self.headwise_attn_output_gate or self.elementwise_attn_output_gate:
+            output = output * torch.sigmoid(gate_score)
+        output = output.reshape(bsz, seq_len, -1)
+
+        # output = output.transpose(1, 2).reshape(bsz, seq_len, -1)
         output = self.resid_dropout(self.o_proj(output))
         return output, past_kv
 
