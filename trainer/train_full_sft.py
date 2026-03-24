@@ -70,7 +70,8 @@ def train_epoch(epoch, loader, iters, start_step=0, wandb=None):
 
         del input_ids, labels, res, loss
 
-
+# torchrun --nproc_per_node 4 train_full_sft.py --hidden_size 512 --epochs 8 --max_seq_len 512 --attn_gate 1 --use_wandb --from_resume 1
+# torchrun --nproc_per_node 4 train_full_sft.py --hidden_size 512 --epochs 8 --attn_gate 1 --use_wandb --from_weight full_sft --data_path ../dataset/sft_2048.jsonl --max_seq_len 2048
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MiniMind Full SFT")
     parser.add_argument("--save_dir", type=str, default="../out", help="模型保存目录")
@@ -88,6 +89,7 @@ if __name__ == "__main__":
     parser.add_argument('--hidden_size', default=512, type=int, help="隐藏层维度")
     parser.add_argument('--num_hidden_layers', default=8, type=int, help="隐藏层数量")
     parser.add_argument('--max_seq_len', default=340, type=int, help="训练的最大截断长度（中文1token≈1.5~1.7字符）")
+    parser.add_argument('--attn_gate', default=0, type=int, choices=[0, 1], help="是否使用门控注意力（0=否，1=是，默认元素级门控）")
     parser.add_argument('--use_moe', default=0, type=int, choices=[0, 1], help="是否使用MoE架构（0=否，1=是）")
     parser.add_argument("--data_path", type=str, default="../dataset/sft_mini_512.jsonl", help="训练数据路径")
     parser.add_argument('--from_weight', default='pretrain', type=str, help="基于哪个权重训练，为none则不基于任何权重训练")
@@ -104,7 +106,7 @@ if __name__ == "__main__":
     
     # ========== 2. 配置目录、模型参数、检查ckp ==========
     os.makedirs(args.save_dir, exist_ok=True)
-    lm_config = MiniMindConfig(hidden_size=args.hidden_size, num_hidden_layers=args.num_hidden_layers, use_moe=bool(args.use_moe))
+    lm_config = MiniMindConfig(hidden_size=args.hidden_size, num_hidden_layers=args.num_hidden_layers, use_moe=bool(args.use_moe), elementwise_attn_output_gate=bool(args.attn_gate))
     ckp_data = lm_checkpoint(lm_config, weight=args.save_weight, save_dir='../checkpoints') if args.from_resume==1 else None
     
     # ========== 3. 设置混合精度 ==========

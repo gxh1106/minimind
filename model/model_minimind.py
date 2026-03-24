@@ -223,6 +223,11 @@ class Attention(nn.Module):
             repeat_kv(xv, self.n_rep).transpose(1, 2)
         )
 
+        target_dtype = self.o_proj.weight.dtype 
+        xq = xq.to(target_dtype)
+        xk = xk.to(target_dtype)
+        xv = xv.to(target_dtype)
+
         if self.flash and (seq_len > 1) and (past_key_value is None) and (attention_mask is None or torch.all(attention_mask == 1)):
             output = F.scaled_dot_product_attention(xq, xk, xv, dropout_p=self.dropout if self.training else 0.0, is_causal=True)
         else:

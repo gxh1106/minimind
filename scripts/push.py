@@ -33,3 +33,21 @@ if __name__ == '__main__':
         path_in_repo="pretrain-512",
         # token=MY_TOKEN
     )
+
+# eval cli
+# HF_DATASETS_TRUST_REMOTE_CODE=1 accelerate launch -m lm_eval \
+#     --model hf \
+#     --model_args pretrained=XinghaoGuo/MiniMind2-GatedAttn,subfolder=pretrain-512,trust_remote_code=True \
+#     --tasks ceval-valid,cmmlu,aclue,tmmluplus \
+#     --batch_size 64 \
+#     --output_path ../results/minimind_eval_all.json
+# lm_eval \
+#     --model hf \
+#     --model_args pretrained=XinghaoGuo/MiniMind2-GatedAttn,subfolder=pretrain-512,trust_remote_code=True,dtype=bfloat16 \
+# pretrained=../MiniMind2-GatedAttn-Pretain-512,trust_remote_code=True,dtype=auto
+#     --tasks ceval-valid,cmmlu,aclue,tmmluplus \
+#     --batch_size 64 \
+#     --output_path ../results/minimind_eval_ceval.json
+
+# rm -rf ~/.cache/huggingface/datasets/ceval___ceval-exam
+# export HF_DATASETS_OFFLINE=1
