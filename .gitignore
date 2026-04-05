@@ -4,10 +4,12 @@ __pycache__/
 out
 website/
 docs-minimind/
-.vscode/
 minimind*/
 MiniMind*/
 out*/
 dataset*/
+!dataset/lm_dataset.py
+!dataset/__init__.py
 checkpoints/
 result*/
+internlm*/
