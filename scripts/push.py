@@ -29,8 +29,8 @@ if __name__ == '__main__':
     # 替换为你要求的仓库名和本地路径
     push_model(
         repo_id="XinghaoGuo/MiniMind3-GatedAttn", 
-        folder_path="../MiniMind3-GatedAttn-PPO-768",
-        path_in_repo="ppo-768" # 这里指定仓库内的路径,
+        folder_path="../MiniMind3-GatedAttn-Agent-768",
+        path_in_repo="agent-768" # 这里指定仓库内的路径,
         # token=MY_TOKEN
     )
 

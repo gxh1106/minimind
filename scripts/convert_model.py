@@ -134,8 +134,8 @@ if __name__ == '__main__':
     
     lm_config = MiniMindConfig(hidden_size=768, num_hidden_layers=8, max_seq_len=8192, use_moe=False, elementwise_attn_output_gate=True)
     # convert torch to transformers
-    torch_path = f"../out/ppo_actor_{lm_config.hidden_size}{'_moe' if lm_config.use_moe else ''}.pth"
-    transformers_path = f'../MiniMind3-GatedAttn-PPO-{lm_config.hidden_size}'
+    torch_path = f"../out/agent_{lm_config.hidden_size}{'_moe' if lm_config.use_moe else ''}.pth"
+    transformers_path = f'../MiniMind3-GatedAttn-Agent-{lm_config.hidden_size}'
     convert_torch2transformers_minimind(torch_path, transformers_path)
 
     # # merge lora

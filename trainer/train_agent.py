@@ -367,7 +367,7 @@ def rl_train_epoch(epoch, loader, iters, rollout_engine, ref_model, reward_model
         optimizer.step(); scheduler.step(); optimizer.zero_grad()
         if is_main_process() and last_step % args.save_interval == 0: rollout_engine.update_policy(model)
 
-
+# CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --nproc_per_node 4 train_agent.py --epochs 4 --attn_gate 1 --use_wandb --rollout_engine torch
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="MiniMind Agent RL")
     parser.add_argument("--save_dir", type=str, default="../out", help="模型保存目录")
@@ -384,6 +384,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_interval", type=int, default=10, help="模型保存间隔")
     parser.add_argument('--hidden_size', default=768, type=int, help="模型隐藏层维度")
     parser.add_argument('--num_hidden_layers', default=8, type=int, help="模型层数")
+    parser.add_argument('--attn_gate', default=0, type=int, choices=[0, 1, 2], help="是否使用门控注意力（0=否，1=元素级门控，2=头级门控）")
     parser.add_argument('--use_moe', default=0, type=int, choices=[0, 1], help="是否使用MoE")
     parser.add_argument('--max_seq_len', default=1024, type=int, help="最大序列长度")
     parser.add_argument("--max_gen_len", type=int, default=768, help="单次最大生成长度")
@@ -402,7 +403,7 @@ if __name__ == "__main__":
     parser.add_argument("--debug_mode", action="store_true", help="调试模式")
     parser.add_argument("--debug_interval", type=int, default=20, help="调试日志间隔")
     parser.add_argument("--thinking_ratio", type=float, default=0.1, help="按概率开启thinking（0.0~1.0）")
-    parser.add_argument("--reward_model_path", type=str, default="../../internlm2-1_8b-reward", help="Reward模型路径")
+    parser.add_argument("--reward_model_path", type=str, default="../internlm2-1_8b-reward", help="Reward模型路径")
     parser.add_argument("--rollout_engine", type=str, default="sglang", choices=["torch", "sglang"], help="rollout引擎类型")
     parser.add_argument("--sglang_base_url", type=str, default="http://localhost:8998", help="SGLang服务器URL")
     parser.add_argument("--sglang_model_path", type=str, default="../model", help="SGLang tokenizer路径")
@@ -415,7 +416,7 @@ if __name__ == "__main__":
 
     os.makedirs(args.save_dir, exist_ok=True)
     lm_config = MiniMindConfig(hidden_size=args.hidden_size, num_hidden_layers=args.num_hidden_layers,
-                               max_seq_len=args.max_seq_len + args.max_gen_len, use_moe=bool(args.use_moe))
+                               max_seq_len=args.max_seq_len + args.max_gen_len, use_moe=bool(args.use_moe), elementwise_attn_output_gate=(args.attn_gate == 1), headwise_attn_output_gate=(args.attn_gate == 2))
     ckp_data = lm_checkpoint(lm_config, weight=args.save_weight, save_dir='../checkpoints') if args.from_resume == 1 else None
 
     device_type = "cuda" if "cuda" in args.device else "cpu"
